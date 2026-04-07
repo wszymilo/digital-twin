@@ -34,6 +34,12 @@ variable "openai_model" {
   default     = "gpt-4o-mini"
 }
 
+variable "openai_api_key" {
+  description = "OpenAIAPI key"
+  type        = string
+  default     = "use-your-value"
+}
+
 variable "lambda_timeout" {
   description = "Lambda function timeout in seconds"
   type        = number
