@@ -28,6 +28,12 @@ variable "bedrock_model_id" {
   default     = "global.amazon.nova-2-lite-v1:0"
 }
 
+variable "openai_model" {
+  description = "OpenAI model name"
+  type        = string
+  default     = "gpt-4o-mini"
+}
+
 variable "lambda_timeout" {
   description = "Lambda function timeout in seconds"
   type        = number

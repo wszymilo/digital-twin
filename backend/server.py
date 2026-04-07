@@ -10,11 +10,15 @@ from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 from context import prompt
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI()
+
+# Initialize OpenAI client
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Configure CORS
 origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
@@ -34,8 +38,10 @@ bedrock_client = boto3.client(
 
 # Bedrock model selection - see Q42 on https://edwarddonner.com/faq for more
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "global.amazon.nova-2-lite-v1:0")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Memory storage configuration
+USE_OPENAI = os.getenv("USE_OPENAI", "true").lower() == "true"
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
 S3_BUCKET = os.getenv("S3_BUCKET", "")
 MEMORY_DIR = os.getenv("MEMORY_DIR", "../memory")
@@ -103,6 +109,28 @@ def save_conversation(session_id: str, messages: List[Dict]):
             json.dump(messages, f, indent=2)
 
 
+def call_openai(conversation: List[Dict], user_message: str) -> str:
+    """Call OpenAI with conversation history"""
+    messages = [{"role": "system", "content": prompt()}]
+
+    for msg in conversation[-50:]:
+        messages.append({
+            "role": msg["role"],
+            "content": msg["content"]
+        })
+    messages.append({
+        "role": "user",
+        "content": user_message
+    })
+    response = openai_client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=messages,
+        temperature=0.7,
+        max_tokens=2000
+    )
+
+    return response.choices[0].message.content
+
 def call_bedrock(conversation: List[Dict], user_message: str) -> str:
     """Call AWS Bedrock with conversation history"""
     
@@ -160,21 +188,38 @@ def call_bedrock(conversation: List[Dict], user_message: str) -> str:
 
 @app.get("/")
 async def root():
-    return {
-        "message": "AI Digital Twin API (Powered by AWS Bedrock)",
-        "memory_enabled": True,
-        "storage": "S3" if USE_S3 else "local",
-        "ai_model": BEDROCK_MODEL_ID
-    }
+    if USE_OPENAI:
+        return {
+            "message": "AI Digital Twin API (Powered by OpenAI)",
+            "memory_enabled": True,
+            "storage": "S3" if USE_S3 else "local",
+            "ai_model": OPENAI_MODEL
+        }
+    else:
+        return {
+            "message": "AI Digital Twin API (Powered by AWS Bedrock)",
+            "memory_enabled": True,
+            "storage": "S3" if USE_S3 else "local",
+            "ai_model": BEDROCK_MODEL_ID
+        }
 
 
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "healthy", 
-        "use_s3": USE_S3,
-        "bedrock_model": BEDROCK_MODEL_ID
-    }
+    if USE_OPENAI:
+        return {
+            "status": "healthy",
+            "use_s3": USE_S3,
+            "use_openai": USE_OPENAI,
+            "openai_model": OPENAI_MODEL
+        }
+    else:
+        return {
+            "status": "healthy",
+            "use_s3": USE_S3,
+            "use_openai": USE_OPENAI,
+            "bedrock_model": BEDROCK_MODEL_ID
+        }
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -186,8 +231,10 @@ async def chat(request: ChatRequest):
         # Load conversation history
         conversation = load_conversation(session_id)
 
-        # Call Bedrock for response
-        assistant_response = call_bedrock(conversation, request.message)
+        if USE_OPENAI:
+            assistant_response = call_openai(conversation, request.message)
+        else:
+            assistant_response = call_bedrock(conversation, request.message)
 
         # Update conversation history
         conversation.append(
@@ -206,8 +253,9 @@ async def chat(request: ChatRequest):
 
         return ChatResponse(response=assistant_response, session_id=session_id)
 
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        print(f"HTTPException in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=e.status_code, detail=e.detail) from e
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) from e

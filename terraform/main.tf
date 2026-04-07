@@ -135,8 +135,11 @@ resource "aws_lambda_function" "api" {
     variables = {
       CORS_ORIGINS     = var.use_custom_domain ? "https://${var.root_domain},https://www.${var.root_domain}" : "https://${aws_cloudfront_distribution.main.domain_name}"
       S3_BUCKET        = aws_s3_bucket.memory.id
+      USE_OPENAI       = "true"
       USE_S3           = "true"
       BEDROCK_MODEL_ID = var.bedrock_model_id
+      OPENAI_MODEL     = var.openai_model
+      OPENAI_API_KEY   = var.openai_api_key
       DEFAULT_AWS_REGION = var.bedrock_aws_region
     }
   }

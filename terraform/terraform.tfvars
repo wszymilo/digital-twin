@@ -1,6 +1,7 @@
 project_name             = "twin"
 environment              = "dev"
 bedrock_model_id         = "global.amazon.nova-2-lite-v1:0"
+openai_model             = "gpt-4o-mini"
 bedrock_aws_region       = "eu-central-1"
 lambda_timeout           = 60
 api_throttle_burst_limit = 10
