@@ -95,7 +95,7 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "✅ Deployment Complete!"
-          echo "🌐 CloudFront URL: ${{ steps.deploy_outputs.outputs.cloudfront_url }}"
-          echo "📡 API Gateway: ${{ steps.deploy_outputs.outputs.api_url }}"
-          echo "🪣 Frontend Bucket: ${{ steps.deploy_outputs.outputs.frontend_bucket }}"
+          echo "✅ Deployment Complete!" >> $GITHUB_STEP_SUMMARY 
+          echo "🌐 CloudFront URL: ${{ steps.deploy_outputs.outputs.cloudfront_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "📡 API Gateway: ${{ steps.deploy_outputs.outputs.api_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "🪣 Frontend Bucket: ${{ steps.deploy_outputs.outputs.frontend_bucket }}" >> $GITHUB_STEP_SUMMARY
